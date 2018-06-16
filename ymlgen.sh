@@ -22,29 +22,35 @@
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 # USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
+#
 set -euf -o pipefail
-ppEx() {
-  ## Pre-processor
-  ## USAGE
-  ##	pp < input > output
-  ## DESC
-  ## Read 
-  local eof="$$" intxt="" shtxt=""
-  eof="EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF"
-  intxt="$(cat)"
-  shtxt="$(
-	echo "$intxt" | grep -E '^##!' | sed 's/^##!//'
-	echo "cat <<$eof"
-	echo "$intxt" | _strip_hash_comments
-	echo ''
-	echo "$eof"
-      )"
-  eval "$shtxt"
-}
 
-pp() {
-  local eof="$$"
-  eof="EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF"
-  local txt="$(echo "cat <<$eof" ; cat ; echo '' ;echo "$eof")"
-  eval "$txt"
+ymlgen() {
+  local off=""
+  local ln left right
+  sed -e 's/^\s*//' -e 's/\s*$//' | (
+    while read ln
+    do
+      [ -z "$ln" ] && continue
+      if ((echo $ln | grep -q '^<') && (echo $ln | grep -q '>$')) ; then
+	ln=$(echo $ln | sed -e 's/^<\s*//' -e 's/\s*>$//')
+	if (echo $ln | grep -q '>.*<') ; then
+	  left=$(echo "$ln" | cut -d'>' -f1)
+	  right=$(echo "$ln" | cut -d'>' -f2- | sed -e 's/<\s*\/[^>]*$//')
+	  echo "$off$left: $right"
+	elif (echo $ln | grep -q '/$') ; then
+	  echo "$off$(echo "$ln" | sed -e 's!\s*/$!!')"
+	elif (echo $ln | grep -q '^/') ; then
+	  off="$(expr substr "$off" 1 $(expr $(expr length "$off") - 2))"
+	  echo "$off:"
+	else
+	  echo "$off$ln:"
+	  off="$off  "
+	fi
+      else
+	echo "Parser can not handle such complex XML!" 1>&2
+	return 2
+      fi
+    done
+  )
 }

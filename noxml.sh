@@ -106,9 +106,12 @@ _pop_tag() {
 xmlgen() {
   ## Generate XML
   ## # Usage
-  ##	xmlgen < in >out
+  ##	xmlgen [--loose] < in >out
   ## # DESC
-  ## Read a "yaml"-like file and genrate "xml" for it.
+  ## Read a "yaml"-like file and generate "xml" for it.
+  local loose=false
+  [ $# -gt 0 ] && [ x"$1" = x"--loose" ] && loose=true
+  
   local \
 	off="" \
 	pops="" \
@@ -137,10 +140,19 @@ xmlgen() {
 	echo "$off<$ln />"
       fi
     done
+    if ! $loose ; then
+      [ -n "$pops" ] && echo "Un-closed tags: $pops" 1>&2
+    fi
     while [ -n "$pops" ]
     do
       _pop_tag
       echo "$off</$tag>"
     done
   )
+}
+
+nshack() {
+  sed \
+	-e 's/^\(\s*\)<"\([^"]*\)"/\1<\2/' \
+	-e 's!^\(\s*\)</"\([^"]*\)"!\1</\2!'
 }
