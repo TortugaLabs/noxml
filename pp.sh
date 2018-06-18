@@ -33,7 +33,7 @@ ppEx() {
   eof="EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF"
   intxt="$(cat)"
   shtxt="$(
-	echo "$intxt" | grep -E '^##!' | sed 's/^##!//'
+	echo "$intxt" | grep -E '^##!' | sed 's/^##!\s*//' || :
 	echo "cat <<$eof"
 	echo "$intxt" | _strip_hash_comments
 	echo ''

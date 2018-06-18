@@ -110,12 +110,17 @@ xmlgen() {
   ## # DESC
   ## Read a "yaml"-like file and generate "xml" for it.
   local loose=false
-  [ $# -gt 0 ] && [ x"$1" = x"--loose" ] && loose=true
+  if [ $# -gt 0 ] && [ x"$1" = x"--loose" ] ; then
+    loose=true
+    shift
+  fi
   
   local \
 	off="" \
 	pops="" \
 	ln="" left="" right="" tag=""
+  [ $# -gt 0 ] && off="$1" && shift
+
   _strip_hash_comments | (
     while read ln
     do
@@ -151,8 +156,9 @@ xmlgen() {
   )
 }
 
-nshack() {
+ns_hack() {
   sed \
 	-e 's/^\(\s*\)<"\([^"]*\)"/\1<\2/' \
-	-e 's!^\(\s*\)</"\([^"]*\)"!\1</\2!'
+	-e 's!^\(\s*\)</"\([^"]*\)"!\1</\2!' \
+	-e 's/"xmlns:\([^"]*\)"/xmlns:\1/'
 }

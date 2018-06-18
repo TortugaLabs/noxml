@@ -31,9 +31,95 @@ mydir=$(dirname "$(readlink -f "$0")")
 . $mydir/noxml.sh
 . $mydir/pp.sh
 
-( pp | xmlgen | nshack ) <<EOF
-# Comments
-domain type="kvm":
+qemu_ns_fix() {
+  sed \
+	-e 's/"xmlns:qemu"/xmlns:qemu/' \
+	-e 's/"qemu:commandline"/qemu:commandline/' \
+	-e 's/"qemu:arg"/qemu:arg/'
+}
+
+pp_expand() {
+  local eof="EOF_$$_EOF_$$_EOF"
+  eval "
+cat <<$eof
+$*
+$eof" | ns_hack
+}
+
+
+ppxml() {
+  local loose=false
+  [ $# -gt 0 ] && [ x"$1" = x"--loose" ] && loose=true
+  
+  local \
+	off="" \
+	pops="" \
+	ln="" left="" right="" tag="" k=0
+  local v_prefix='' v_stack=""
+
+  while read ln
+  do
+    k=$(expr $k + 1)
+    if ( echo "$ln" | grep -qE '^\s*##!' ) ; then
+      eval "$(echo "$ln" | sed -e 's/^\s*##!\s*//')"
+      continue
+    elif ( echo "$ln" | grep -qE '^\s*##\|' ) ; then
+      eval "$(echo "$ln" | sed -e 's/^\s*##|\s*//')" | xmlgen "$off"
+      continue
+    fi
+    ln="$(echo "$ln" | sed -e 's/^\s*#.*$//' -e 's/^\s*//' -e 's/\s*$//')"
+    [ -z "$ln" ] && continue
+    
+    if [ x"$ln" = x":" -o x"$ln" = x"/" ] ; then
+      _pop_tag
+      pp_expand "$off</$tag>"
+      if [ -n "$v_stack" ] ; then
+	v_prefix=$(set - $v_stack ; echo "$1")
+	v_stack=$(set - $v_stack ; shift ; echo "$*")
+      fi
+    elif _split_cfg_line "$ln" left right ; then
+      # Found
+      tag=$(echo "$left" | (read a b ; echo $a))
+      local tag_var="$v_prefix$(echo $tag | tr -dc _A-Za-z0-9)"
+      if [ -z "$right" ] ; then
+	# Open tag...
+	pp_expand "$off<$left>"
+	pops=$(echo $tag $pops)
+	off="  $off"
+	if [ -n "$v_prefix" ] ; then
+	  if [ -z "$v_stack" ] ; then
+	    v_stack="$v_prefix"
+	  else
+	    v_stack="$v_prefix $v_stack"
+	  fi
+	fi
+	v_prefix="${tag_var}_"
+      else
+	# Single line content
+	pp_expand "$off<$left>$right</$tag>"
+	eval "${tag_var}=\"$right\""
+      fi
+    else
+      # Self contained tag
+      pp_expand "$off<$ln />"
+    fi
+  done
+  if ! $loose ; then
+    [ -n "$pops" ] && echo "Un-closed tags: $pops" 1>&2
+  fi
+  while [ -n "$pops" ]
+  do
+    _pop_tag
+    pp_expand "$off</$tag>"
+  done
+}
+
+
+#( ppEx | xmlgen | nshack )
+#(ppEx|xmlgen)  <<'EOF'
+ppxml <<'EOF'
+# Comments	
+domain type="kvm" "xmlns:qemu"="http://libvirt.org/schemas/domain/qemu/1.0":
   name: ts1
   uuid: $(m_uuid)
   memory unit="MiB": 1024
@@ -57,21 +143,23 @@ domain type="kvm":
       listen type="address" address="0.0.0.0"
     :
     # Storage configuration
-    $(m_disc_block vdev=vda path=/dev/hdvg0/ts1-v1)
-    $(m_disc_file vdev=vdc file=/medias/isolib/boot-params/rs1.vfat)
-    $(m_cdrom_local vdev="vdb" iso="/media/isolib/boot-cd/alpine-virt-3.7.0-x86_64.iso")
-    $(m_cdrom_http vdev="vdb" url="http://alvm1.localnet/Files/Temp/isolib-installers/os/elementary/elementaryos-0.3.2-stable-amd64.20151209.iso")
+    ##| m_disc_block vdev=vda path=/dev/hdvg0/ts1-v1
+    ##| m_disc_file vdev=vdc file=/medias/isolib/boot-params/rs1.vfat
+    ##| m_cdrom_local vdev="vdb" iso="/media/isolib/boot-cd/alpine-virt-3.7.0-x86_64.iso"
+    ##| m_cdrom_http vdev="vdb" url="http://alvm1.localnet/Files/Temp/isolib-installers/os/elementary/elementaryos-0.3.2-stable-amd64.20151209.iso"
     # Network configuration
-    $(m_net_brnic br=br4)
+    ##| m_net_brnic br=br4
 
+    # Create a private data channel.
     channel type="file":
       source path="/tmp/vm-serial.txt"
       target type="virtio" name="net.0ink.cmds.0"
     :
   :
+  # Create a internal network that only allows traffic between guest and host
   "qemu:commandline":
     "qemu:arg" value="-netdev"
-    "qemu:arg" value="user,id=int1,restrict,guestfwd=tcp:10.0.2.1:88-cmd:/bin/cat /etc/motd,guestfwd=tcp:10.0.2.1:22-tcp:127.0.0.1:22"
+    "qemu:arg" value="user,id=int1,restrict,guestfwd=tcp:10.0.2.1:88-cmd:/usr/local/bin/xchan $domain_name,guestfwd=tcp:10.0.2.1:22-tcp:127.0.0.1:22"
     "qemu:arg" value="-device"
     "qemu:arg" value="virtio-net-pci,netdev=int1,id=ifnet1,mac=$(m_macaddr)"
   :
