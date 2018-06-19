@@ -102,13 +102,3 @@ m_parse() {
   return $rc
 }
 
-m_uuid() {
-  ## Generate a random UUID
-  ## USAGE
-  ##	m_uuid
-  if [ -f /proc/sys/kernel/random/uuid ] ; then
-    cat /proc/sys/kernel/random/uuid
-  else
-    uuidgen
-  fi
-}
