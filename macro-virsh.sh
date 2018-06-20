@@ -25,6 +25,7 @@
 #
 set -euf -o pipefail
 
+xmlns_qemu='"xmlns:qemu"="http://libvirt.org/schemas/domain/qemu/1.0"'
 
 # Select from: http://standards-oui.ieee.org/oui/oui.txt
 # Random OUI
@@ -40,12 +41,41 @@ m_macaddr() {
   echo ${1:-$oui_random}:$(random_hex):$(random_hex):$(random_hex)
 }
 
+m_uuid() {
+  ## Generate a random UUID
+  ## USAGE
+  ##	m_uuid
+  if [ -f /proc/sys/kernel/random/uuid ] ; then
+    cat /proc/sys/kernel/random/uuid
+  else
+    uuidgen
+  fi
+}
+
+# Create a internal network that only allows traffic between guest and host
+m_qemu_adm_interface() {
+  local id="int1" type="virtio-net-pci" mac="" xchan="/usr/local/bin/xchan"
+  local opts="id type mac? xchan"
+  m_parse m_qemu_adm_interface "$@" || return 1
+  [ -z "$mac" ] && mac=$(m_macaddr)
+  [ $(expr length "$mac") -eq 8 ] && mac="$oui_prefix:$mac"
+  (
+    cat <<-EOF
+	"qemu:commandline":
+	  "qemu:arg" value="-netdev"
+	  "qemu:arg" value="user,id=$id,restrict,guestfwd=tcp:10.0.2.1:88-cmd:$xchan $domain_name,guestfwd=tcp:10.0.2.1:22-tcp:127.0.0.1:22"
+	  "qemu:arg" value="-device"
+	  "qemu:arg" value="$type,netdev=$id,id=ifnet$id,mac=$mac"
+	:
+	EOF
+  ) | xmlgen "$off" | ns_hack
+}
+
 m_disc_block() {
   local vdev="" path=""
   local opts="vdev path"
   m_parse m_disc_block "$@" || return 1
   cat <<-_EOF_
-    # Storage configuration
     disk type="block" device="disk":
       source dev="$path"
       target dev="$vdev"
@@ -113,5 +143,6 @@ m_net_brnic() {
     :
 	_EOF_
 }
+
 
 

@@ -42,18 +42,23 @@ rc=0
 done='[OK]'
 for input in "$@"
 do
-  if [ ! -f "$input" ] ; then
-    echo "$input: not found" 1>&2
-    continue
-  fi
-  output=$(echo $input | sed -e 's/\.cfm$/.xml/')
-  if [ x"$input" = x"$output" ] ; then
-    output="$input.xml"
-  fi
-  [ $# -gt 1 ] && echo -n "$input " 1>&2
-  if ! ppxml <"$input" >"$output" ; then
-    rc=1
-    done='[ERROR]'
+  if [ x"$input" = x"-" ] ; then
+    set -
+    ppxml || rc=1
+  else
+    if [ ! -f "$input" ] ; then
+      echo "$input: not found" 1>&2
+      continue
+    fi
+    output=$(echo $input | sed -e 's/\.cfm$/.xml/')
+    if [ x"$input" = x"$output" ] ; then
+      output="$input.xml"
+    fi
+    [ $# -gt 1 ] && echo -n "$input " 1>&2
+    if ! ppxml <"$input" >"$output" ; then
+      rc=1
+      done='[ERROR]'
+    fi
   fi
 done
 
