@@ -49,19 +49,19 @@ _split_cfg_line() {
   ## Returns "true" if ":" is found, otherwise returns "false"
   ##
   local ln="$1"
-  local i=1 j='' k=$(expr length "$ln")
+  local i=0 j='' k=${#ln}
 
-  while [ $i -le $k ]
+  while [ $i -lt $k ]
   do
-    ch=$(expr substr "$ln" $i 1)
+    local ch=${ln:$i:1}
     if [ -z "$j" ] ; then
       # We are looking for the ":" separator...
       case "$ch" in
       :)
 	# WE FOUND IT!
-	local _left="$(expr substr "$ln" 1 $(expr $i - 1) | sed -e 's/\s*$//')"
+	local _left="$(echo "${ln:0:$i}" | xargs)"
 	local _right=""
-	[ $i -lt $k ] && _right="$(expr substr "$ln" $(expr $i + 1) $(expr $k - $i) | sed -e 's/^\s*//')"
+	[ $i -lt $k ] && _right="$(echo "${ln:$(expr $i + 1):$(expr $k - $i)}" | xargs)"
 	#~ echo "LEFT=<$_left>"
 	#~ echo "RIGHT=<$_right>"
 	[ -n "${2:-}" ] && eval ${2}=\"\$_left\"
@@ -72,9 +72,9 @@ _split_cfg_line() {
 	j="$ch"
 	;;
       esac
-    elif [ x"$(expr substr "$j" 1 1)" = x"\\" ] ; then
+    elif [ x"${j:0:1}" = x"\\" ] ; then
       # Backslash... we skip it...
-      j=$(expr substr "$j" 2 1) || :
+      j=${j:1:1} || :
     elif [ x"$j" = x"'" -o x"$j" = x"\"" ] ; then
       if [ x"$ch" = x"$j" ] ; then
 	# Close it...
@@ -100,7 +100,7 @@ _pop_tag() {
 
   tag=$(set - $pops ; echo $1)
   pops=$(set - $pops ; shift ; echo $*)
-  off="$(expr substr "$off" 1 $(expr $(expr length "$off") - 2))" || :
+  off="${off:0:$(expr ${#off} - 2)}" || :
 }
 
 xmlgen() {
