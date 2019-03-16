@@ -51,6 +51,7 @@ do
       continue
     fi
     output=$(echo $input | sed -e 's/\.cfm$/.xml/')
+    name=$(basename "$output" .xml)
     if [ x"$input" = x"$output" ] ; then
       output="$input.xml"
     fi
