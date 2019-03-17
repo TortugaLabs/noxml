@@ -59,11 +59,11 @@ _split_cfg_line() {
       case "$ch" in
       :)
 	# WE FOUND IT!
-	local _left="$(echo "${ln:0:$i}" | xargs)"
+	local _left="$(echo "${ln:0:$i}" | sed -e 's/\s*$//')"
 	local _right=""
-	[ $i -lt $k ] && _right="$(echo "${ln:$(expr $i + 1):$(expr $k - $i)}" | xargs)"
-	#~ echo "LEFT=<$_left>"
-	#~ echo "RIGHT=<$_right>"
+	[ $i -lt $k ] && _right="$(echo "${ln:$(expr $i + 1):$(expr $k - $i)}" | sed -e 's/^\s*//')"
+	#~ echo "LEFT=<$_left>" 1>&2
+	#~ echo "RIGHT=<$_right>" 1>&2
 	[ -n "${2:-}" ] && eval ${2}=\"\$_left\"
 	[ -n "${3:-}" ] && eval ${3}=\"\$_right\"
 	return 0
