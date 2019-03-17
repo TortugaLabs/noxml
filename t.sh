@@ -26,7 +26,6 @@
 set -euf -o pipefail
 
 mydir=$(dirname "$(readlink -f "$0")")
-. $mydir/macro-common.sh
 . $mydir/macro-virsh.sh
 . $mydir/noxml.sh
 . $mydir/ppxml.sh

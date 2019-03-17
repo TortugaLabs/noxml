@@ -25,6 +25,82 @@
 #
 set -euf -o pipefail
 
+m_error() {
+  ## Handle error messages
+  ## USAGE
+  ##	m_error "message"
+  ## DESC
+  ## Will display a message on `stderr` prefixed with "ERROR:",
+  ## and output the same message to stdout prefixed with "#".
+  ##
+  ## The rationale is that stdout is being saved to the output
+  ## file, so we are marking the output with the error (as
+  ## a comment).  While the console, will show the "ERROR" message
+  ###
+  echo "# $*"
+  echo "ERROR: $*" 1>&2
+  return 0
+}
+
+m_parse() {
+  ## Parse command line arguments
+  ## USAGE
+  ##	local optname1="" optname2=""
+  ##	local opts="optname1 optname2?"
+  ##	m_parse cmd_name "$@" || return
+  ## DESC
+  ## Parse command-line switches for "key=value" pairs.
+  ## "key" must have been defined in "$opts".  If "key" is not defined
+  ## it is an error.
+  ##
+  ## If a key defined in "$opts" ends with "?", the key is treated
+  ## as optional
+  ##
+  ## After all arguments are checked, it will make sure that all
+  ## the $opts (which did not end with "?") have a value.
+  local name="$1" ; shift
+  local switch='case "$1" in'
+  local i check=""
+  for i in $opts
+  do
+    if (echo $i | grep -q '?$') ; then
+      i=$(echo $i | sed -e 's/?$//')
+    else
+      if [ -z "$check" ] ; then
+	check="$i"
+      else
+	check="$check $i"
+      fi
+    fi
+    switch="$switch
+	${i}=*) ${i}=\${1#$i=} ;; "
+  done
+  switch="$switch
+	*) m_error \"$name: Invalid specification \\\"\$1\\\"\" ; return 1 ;;"
+  switch="$switch
+	esac"
+
+  #echo "$switch"
+  while [ $# -gt 0 ]
+  do
+    eval "$switch"
+    shift
+  done
+
+  # Check if parameter is there...
+  rc=0
+  for i in $check
+  do
+    eval "local j=\${$i:-}"
+    [ -n "$j" ] && continue
+    rc=1
+    m_error "$name: $i not specified"
+  done
+
+  return $rc
+}
+
+
 xmlns_qemu='"xmlns:qemu"="http://libvirt.org/schemas/domain/qemu/1.0"'
 
 # Select from: http://standards-oui.ieee.org/oui/oui.txt

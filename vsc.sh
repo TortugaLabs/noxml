@@ -29,7 +29,6 @@ mydir=$(dirname "$(readlink -f "$0")")
 export LIBDIR="$(dirname "$mydir")/lib"
 export PATH=$PATH:$mydir:$LIBDIR
 
-. macro-common.sh
 . noxml.sh
 . ppxml.sh
 
