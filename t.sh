@@ -29,8 +29,10 @@ mydir=$(dirname "$(readlink -f "$0")")
 . $mydir/macro-virsh.sh
 . $mydir/noxml.sh
 . $mydir/ppxml.sh
+. $mydir/xmlparse.sh
+. $mydir/ymlgen.sh
 
-ppxml <<'EOF'
+: ppxml <<'EOF'
 # Comments	
 domain type="kvm" "xmlns:qemu"="http://libvirt.org/schemas/domain/qemu/1.0":
   name: ts1
@@ -79,7 +81,7 @@ domain type="kvm" "xmlns:qemu"="http://libvirt.org/schemas/domain/qemu/1.0":
 :
 EOF
 
-: xmlparse <<EOF
+ymlgen <<EOF
 <domain type="kvm">
     <name>demo2</name>
     <uuid>4dea24b3-1d52-d8f3-2516-782e98a23fa0</uuid>

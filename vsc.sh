@@ -29,13 +29,32 @@ mydir=$(dirname "$(readlink -f "$0")")
 export LIBDIR="$(dirname "$mydir")/lib"
 export PATH=$PATH:$mydir:$LIBDIR
 
-. noxml.sh
-. ppxml.sh
+. pp.sh
+noxml() {
+  python3 $mydir/noxml.py "$@"
+}
 
 if [ $# -eq 0 ] ; then
   echo "Usage: $0 {input.cfm} ..."
   exit 1
 fi
+
+while [ $# -gt 0 ]
+do
+  case "$1" in
+  -I*)
+    export PATH="$PATH:${1#-I}"
+    ;;
+  -D*)
+    eval "${1#-D}"
+    ;;
+  *)
+    break
+    ;;
+  esac
+  shift
+done
+
 
 rc=0
 done='[OK]'
@@ -43,7 +62,7 @@ for input in "$@"
 do
   if [ x"$input" = x"-" ] ; then
     set -
-    ppxml || rc=1
+    (ppEx | noxml) || rc=1
   else
     if [ ! -f "$input" ] ; then
       echo "$input: not found" 1>&2
@@ -51,11 +70,10 @@ do
     fi
     output=$(echo $input | sed -e 's/\.cfm$/.xml/')
     name=$(basename "$output" .xml)
-    if [ x"$input" = x"$output" ] ; then
-      output="$input.xml"
-    fi
+    [ x"$input" = x"$output" ] && output="$input.xml"
+
     [ $# -gt 1 ] && echo -n "$input " 1>&2
-    if ! ppxml <"$input" >"$output" ; then
+    if ! ( exec <"$input" >"$output" ; ppEx | noxml ) ; then
       rc=1
       done='[ERROR]'
     fi

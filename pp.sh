@@ -26,23 +26,50 @@ set -euf -o pipefail
 ppEx() {
   ## Pre-processor
   ## USAGE
-  ##	pp < input > output
+  ##	ppEx < input > output
   ## DESC
   ## Read 
-  local eof="$$" intxt="" shtxt=""
+  local eof="$$"
   eof="EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF"
-  intxt="$(cat)"
-  shtxt="$(
-	echo "$intxt" | grep -E '^##!' | sed 's/^##!\s*//' || :
-	echo "cat <<$eof"
-	echo "$intxt" | _strip_hash_comments
-	echo ''
-	echo "$eof"
-      )"
-  eval "$shtxt"
+
+  eval "$(sed -e 's/^/:/' | (
+    mode='shell'
+    while read line
+    do
+      if (echo "$line" | grep -q '^:[ \t]*##!') ; then
+	case "$mode" in
+	shell)
+	  echo "$line" | sed -e 's/\(^:[ \t]*\)##!/\1/'
+	  ;;
+	heredoc)
+	  echo ":$eof"
+	  mode="shell"
+	  ;;
+	esac
+      else
+	case "$mode" in
+	shell)
+	  echo ":cat <<$eof"
+	  echo "$line"
+	  mode="heredoc"
+	  ;;
+	heredoc)
+	  echo "$line"
+	  ;;
+	esac
+      fi
+    done
+    [ "$mode" = "heredoc" ] && echo ":$eof"
+    ) | sed -e 's/^://'
+  )"
 }
 
 pp() {
+  ## Pre-processor
+  ## USAGE
+  ##	ppEx < input > output
+  ## DESC
+  ## Read 
   local eof="$$"
   eof="EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF_${eof}_EOF"
   local txt="$(echo "cat <<$eof" ; cat ; echo '' ;echo "$eof")"
