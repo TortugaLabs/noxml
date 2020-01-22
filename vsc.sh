@@ -62,7 +62,7 @@ for input in "$@"
 do
   if [ x"$input" = x"-" ] ; then
     set -
-    (ppEx | noxml) || rc=1
+    (export PATH="$(pwd):$PATH" ; ppEx | noxml) || rc=1
   else
     if [ ! -f "$input" ] ; then
       echo "$input: not found" 1>&2
@@ -73,7 +73,7 @@ do
     [ x"$input" = x"$output" ] && output="$input.xml"
 
     [ $# -gt 1 ] && echo -n "$input " 1>&2
-    if ! ( exec <"$input" >"$output" ; ppEx | noxml ) ; then
+    if ! ( exec <"$input" >"$output" ; export PATH="$(dirname "$input"):$PATH" ; ppEx | noxml ) ; then
       rc=1
       done='[ERROR]'
     fi
