@@ -34,7 +34,7 @@ ppEx() {
 
   eval "$(sed -e 's/^/:/' | (
     mode='shell'
-    while read line
+    while read -r line
     do
       if (echo "$line" | grep -q '^:[ \t]*##!') ; then
 	case "$mode" in
