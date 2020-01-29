@@ -3,8 +3,6 @@
 Make it easier to write XML config files
 
 - noxml.py : Converts YAML type syntax into XML
-- pp.sh : Basic BASHy text preprocessor
-- ppxml.sh : XML converter with integrated pre-processor.
 
 Additional utilities
 

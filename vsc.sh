@@ -35,7 +35,7 @@ noxml() {
 }
 
 if [ $# -eq 0 ] ; then
-  echo "Usage: $0 {input.cfm} ..."
+  echo "Usage: $0 {input.nxm} ..."
   exit 1
 fi
 
@@ -62,18 +62,18 @@ for input in "$@"
 do
   if [ x"$input" = x"-" ] ; then
     set -
-    (export PATH="$(pwd):$PATH" ; ppEx | noxml) || rc=1
+    (export PATH="$(pwd):$PATH" ; pp | noxml) || rc=1
   else
     if [ ! -f "$input" ] ; then
       echo "$input: not found" 1>&2
       continue
     fi
-    output=$(echo $input | sed -e 's/\.cfm$/.xml/')
+    output=$(echo $input | sed -e 's/\.nxm$/.xml/')
     name=$(basename "$output" .xml)
     [ x"$input" = x"$output" ] && output="$input.xml"
 
     [ $# -gt 1 ] && echo -n "$input " 1>&2
-    if ! ( exec <"$input" >"$output" ; export PATH="$(dirname "$input"):$PATH" ; ppEx | noxml ) ; then
+    if ! ( exec <"$input" >"$output" ; export PATH="$(dirname "$input"):$PATH" ; pp | noxml ) ; then
       rc=1
       done='[ERROR]'
     fi
