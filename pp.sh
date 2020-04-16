@@ -52,12 +52,14 @@ pp() {
     while read -r line
     do
       if (echo "$line" | grep -q '^:[ \t]*##!') ; then
+	: "found ##! cmode $mode"
 	case "$mode" in
 	shell)
 	  echo "$line" | sed -e 's/\(^:[ \t]*\)##!/\1/'
 	  ;;
 	heredoc)
 	  echo ":$eof"
+	  echo "$line" | sed -e 's/\(^:[ \t]*\)##!/\1/'
 	  mode="shell"
 	  ;;
 	esac
@@ -95,6 +97,23 @@ ppSimple() {
   eval "$txt"
 }
 
+sppinc() {
+  local oPATH="$PATH" f inc
+
+  for inc in "$@"
+  do
+    f="$(find_in_path "$inc")"
+    if [ -z "$f" ] ; then
+      echo "$inc: not included" 1>&2
+      continue
+    fi
+    local __FILE__="$f" __DIR__="$(dirname "$f")"
+    export PATH="$oPATH:.:$(dirname "$f")"
+    . "$f"
+  done
+  export PATH="$oPATH"
+}
+
 ppCmd() {
   ## Command line `pp` driver
   ##
@@ -112,6 +131,7 @@ ppCmd() {
   fi
 
   output=''
+  query=''
   while [ $# -gt 0 ]
   do
     case "$1" in
@@ -124,6 +144,21 @@ ppCmd() {
       ;;
     --output=*)
       output="${1#--output=}"
+      ;;
+    --query=*)
+      query="${1#--query=}"
+      [ -z "$output" ] && output="-"
+      ;;
+    -L)
+      if [ $# -lt 2 ] ; then
+        echo "No argument specified for -L"
+        exit 2
+      fi
+      . "$2"
+      shift
+      ;;
+    -L*)
+      . "${1#-L}"
       ;;
     -I*)
       export PATH="$PATH:${1#-I}"
@@ -141,8 +176,16 @@ ppCmd() {
   rc=0
   done='[OK]'
   if [ -n "$output" ]  ; then
-    name=$(echo "$output" | tr A-Z a-z | sed -e 's/^\([a-z0-9]*\).*$/\1/')
+    name=$(basename "$output" | tr A-Z a-z | sed -e 's/^\([a-z0-9]*\).*$/\1/')
     [ x"$output" != x"-" ] && exec > "$output"
+
+    if [ -n "$query" ] ; then
+      set -
+      if ! (export PATH="$(pwd):$PATH" ; echo "$query" | pp ) ; then
+	rc=1
+	done='[ERROR]'
+      fi
+    fi
     for input in "$@"
     do
       if [ x"$input" = x"-" ] ; then
@@ -153,7 +196,10 @@ ppCmd() {
 	fi
       else
 	[ $# -gt 1 ] && echo -n "$input " 1>&2
-	if ! ( exec <"$input" ; export PATH="$(dirname "$input"):$PATH" ; pp ) ; then
+	if ! (
+		name=$(basename "$input" | tr A-Z a-z | sed -e 's/^\([a-z0-9]*\).*$/\1/')
+		exec <"$input" ; export PATH="$(dirname "$input"):$PATH" ; pp
+	     ) ; then
 	  rc=1
 	  done='[ERROR]'
 	fi
@@ -170,10 +216,10 @@ ppCmd() {
 	continue
       fi
 
-      name=$(echo "$input" | tr A-Z a-z | sed -e 's/^\([a-z0-9]*\).*$/\1/')
+      name=$(basename "$input" | tr A-Z a-z | sed -e 's/^\([a-z0-9]*\).*$/\1/')
       output=$(echo "$input" | sed -e 's/\.m\.\([^.]*\)$/.\1/')
       [ x"$output" = x"$input" ] && output="$input.out"
-    
+
       [ $# -gt 1 ] && echo -n "$input " 1>&2
       if ! ( exec <"$input" >"$output" ; export PATH="$(dirname "$input"):$PATH" ; pp ) ; then
 	rc=1
